@@ -66,6 +66,18 @@ export function resolveStateDir(
   if (override) {
     return resolveUserPath(override, env, effectiveHomedir);
   }
+
+  // Support project-local isolation: if a .openclaw directory exists in the CWD, use it.
+  const localDir = path.join(process.cwd(), NEW_STATE_DIRNAME);
+  try {
+    const stat = fs.statSync(localDir);
+    if (stat.isDirectory()) {
+      return localDir;
+    }
+  } catch {
+    // ignore
+  }
+
   const newDir = newStateDir(effectiveHomedir);
   const legacyDirs = legacyStateDirs(effectiveHomedir);
   const hasNew = fs.existsSync(newDir);

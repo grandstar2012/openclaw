@@ -285,18 +285,20 @@ export async function doctorCommand(
     healthOk,
   });
 
-  const shouldWriteConfig =
-    configResult.shouldWriteConfig || JSON.stringify(cfg) !== JSON.stringify(cfgForPersistence);
+  const cfgChanged = JSON.stringify(cfg) !== JSON.stringify(cfgForPersistence);
+  const shouldWriteConfig = configResult.shouldWriteConfig || cfgChanged;
   if (shouldWriteConfig) {
-    cfg = applyWizardMetadata(cfg, { command: "doctor", mode: resolveMode(cfg) });
-    await writeConfigFile(cfg);
-    logConfigUpdated(runtime);
-    const backupPath = `${CONFIG_PATH}.bak`;
-    if (fs.existsSync(backupPath)) {
-      runtime.log(`Backup: ${shortenHomePath(backupPath)}`);
+    if (options.repair || options.yes) {
+      cfg = applyWizardMetadata(cfg, { command: "doctor", mode: resolveMode(cfg) });
+      await writeConfigFile(cfg);
+      logConfigUpdated(runtime);
+      const backupPath = `${CONFIG_PATH}.bak`;
+      if (fs.existsSync(backupPath)) {
+        runtime.log(`Backup: ${shortenHomePath(backupPath)}`);
+      }
+    } else {
+      runtime.log(`Run "${formatCliCommand("openclaw doctor --fix")}" to apply changes.`);
     }
-  } else {
-    runtime.log(`Run "${formatCliCommand("openclaw doctor --fix")}" to apply changes.`);
   }
 
   if (options.workspaceSuggestions !== false) {

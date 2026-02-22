@@ -11,6 +11,7 @@ export async function installPackageDir(params: {
   copyErrorPrefix: string;
   hasDeps: boolean;
   depsLogMessage: string;
+  nodeManager?: "npm" | "pnpm" | "yarn" | "bun";
   afterCopy?: () => void | Promise<void>;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   params.logger?.info?.(`Installing to ${params.targetDir}…`);
@@ -44,18 +45,30 @@ export async function installPackageDir(params: {
 
   if (params.hasDeps) {
     params.logger?.info?.(params.depsLogMessage);
-    const npmRes = await runCommandWithTimeout(
-      ["npm", "install", "--omit=dev", "--silent", "--ignore-scripts"],
-      {
-        timeoutMs: Math.max(params.timeoutMs, 300_000),
-        cwd: params.targetDir,
-      },
-    );
+    const pm = params.nodeManager ?? (process.env.npm_config_user_agent?.includes("pnpm") ? "pnpm" : "npm");
+    const pmArgs = (() => {
+      switch (pm) {
+        case "pnpm":
+          return ["install", "--prod", "--ignore-scripts"];
+        case "yarn":
+          return ["install", "--production", "--ignore-scripts"];
+        case "bun":
+          return ["install", "--production", "--ignore-scripts"];
+        default:
+          return ["install", "--omit=dev", "--no-audit", "--no-fund", "--ignore-scripts", "--loglevel", "error"];
+      }
+    })();
+    const npmRes = await runCommandWithTimeout([pm, ...pmArgs], {
+      timeoutMs: Math.max(params.timeoutMs, 300_000),
+      cwd: params.targetDir,
+    });
     if (npmRes.code !== 0) {
+      const errorDetail = (npmRes.stderr.trim() || npmRes.stdout.trim() || `unknown ${pm} error`).split("\n")[0];
+      params.logger?.info?.(`${pm} install failed (code ${npmRes.code}): ${errorDetail}`);
       await rollback();
       return {
         ok: false,
-        error: `npm install failed: ${npmRes.stderr.trim() || npmRes.stdout.trim()}`,
+        error: `${pm} install failed: ${npmRes.stderr.trim() || npmRes.stdout.trim() || "exited with code " + npmRes.code}`,
       };
     }
   }

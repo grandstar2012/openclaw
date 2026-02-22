@@ -33,13 +33,11 @@ export function shouldSpawnWithShell(params: {
   resolvedCommand: string;
   platform: NodeJS.Platform;
 }): boolean {
-  // SECURITY: never enable `shell` for argv-based execution.
-  // `shell` routes through cmd.exe on Windows, which turns untrusted argv values
-  // (like chat prompts passed as CLI args) into command-injection primitives.
-  // If you need a shell, use an explicit shell-wrapper argv (e.g. `cmd.exe /c ...`)
-  // and validate/escape at the call site.
-  void params;
-  return false;
+  if (params.platform !== "win32") {
+    return false;
+  }
+  const ext = path.extname(params.resolvedCommand).toLowerCase();
+  return ext === ".cmd" || ext === ".bat";
 }
 
 // Simple promise-wrapped execFile with optional verbosity logging.

@@ -154,6 +154,7 @@ async function installPluginFromPackageDir(params: {
   mode?: "install" | "update";
   dryRun?: boolean;
   expectedPluginId?: string;
+  nodeManager?: "npm" | "pnpm" | "yarn" | "bun";
 }): Promise<InstallPluginResult> {
   const { logger, timeoutMs, mode, dryRun } = resolveTimedPluginInstallModeOptions(params);
 
@@ -273,6 +274,7 @@ async function installPluginFromPackageDir(params: {
     copyErrorPrefix: "failed to copy plugin",
     hasDeps,
     depsLogMessage: "Installing plugin dependencies…",
+    nodeManager: params.nodeManager,
     afterCopy: async () => {
       for (const entry of extensions) {
         const resolvedEntry = path.resolve(targetDir, entry);
@@ -308,6 +310,7 @@ export async function installPluginFromArchive(params: {
   mode?: "install" | "update";
   dryRun?: boolean;
   expectedPluginId?: string;
+  nodeManager?: "npm" | "pnpm" | "yarn" | "bun";
 }): Promise<InstallPluginResult> {
   const logger = params.logger ?? defaultLogger;
   const timeoutMs = params.timeoutMs ?? 120_000;
@@ -349,6 +352,7 @@ export async function installPluginFromArchive(params: {
       mode,
       dryRun: params.dryRun,
       expectedPluginId: params.expectedPluginId,
+      nodeManager: params.nodeManager,
     });
   });
 }
@@ -433,6 +437,7 @@ export async function installPluginFromNpmSpec(params: {
   expectedPluginId?: string;
   expectedIntegrity?: string;
   onIntegrityDrift?: (params: PluginNpmIntegrityDriftParams) => boolean | Promise<boolean>;
+  nodeManager?: "npm" | "pnpm" | "yarn" | "bun";
 }): Promise<InstallPluginResult> {
   const { logger, timeoutMs, mode, dryRun } = resolveTimedPluginInstallModeOptions(params);
   const expectedPluginId = params.expectedPluginId;
@@ -461,6 +466,7 @@ export async function installPluginFromNpmSpec(params: {
         mode,
         dryRun,
         expectedPluginId,
+        nodeManager: params.nodeManager,
       }),
   });
   if (!flowResult.ok) {

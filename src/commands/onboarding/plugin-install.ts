@@ -165,6 +165,8 @@ export async function ensureOnboardingPluginInstalled(params: {
       info: (msg) => runtime.log?.(msg),
       warn: (msg) => runtime.log?.(msg),
     },
+    nodeManager: next.skills?.install?.nodeManager,
+    mode: "update",
   });
 
   if (result.ok) {
