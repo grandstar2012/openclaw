@@ -14,6 +14,7 @@ import {
   renderAgentCron,
 } from "./agents-panels-status-files.ts";
 import { renderAgentTools, renderAgentSkills } from "./agents-panels-tools-skills.ts";
+import { icons } from "../icons.ts";
 import {
   agentBadgeText,
   buildAgentContext,
@@ -84,6 +85,9 @@ export type AgentsProps = {
   onAgentSkillToggle: (agentId: string, skillName: string, enabled: boolean) => void;
   onAgentSkillsClear: (agentId: string) => void;
   onAgentSkillsDisableAll: (agentId: string) => void;
+  onHire: (name: string) => void;
+  onFire: (agentId: string) => void;
+  onIdentityUpdate: (agentId: string, patch: { name?: string; emoji?: string; avatar?: string }) => void;
 };
 
 export type AgentContext = {
@@ -146,6 +150,23 @@ export function renderAgents(props: AgentsProps) {
                 })
           }
         </div>
+        <div class="row" style="justify-content: space-between; margin-top: 16px; padding: 0 4px;">
+          <button class="btn btn--sm primary" style="flex: 1; margin-right: 4px;" @click=${() => {
+            const name = prompt("Hire New Specialist (e.g., Artist, Writer, Manager):");
+            if (name && name.trim()) {
+              props.onHire(name.trim());
+            }
+          }}>
+            + Hire Agent
+          </button>
+          <button class="btn btn--sm" ?disabled=${!selectedId || selectedId === defaultId} @click=${() => {
+            if (selectedId && confirm(`Are you sure you want to fire ${selectedId}? This will delete their workspace and sessions.`)) {
+              props.onFire(selectedId);
+            }
+          }}>
+            − Fire
+          </button>
+        </div>
       </section>
       <section class="agents-main">
         ${
@@ -161,6 +182,7 @@ export function renderAgents(props: AgentsProps) {
                   selectedAgent,
                   defaultId,
                   props.agentIdentityById[selectedAgent.id] ?? null,
+                  props.onIdentityUpdate,
                 )}
                 ${renderAgentTabs(props.activePanel, (panel) => props.onSelectPanel(panel))}
                 ${
@@ -180,6 +202,7 @@ export function renderAgents(props: AgentsProps) {
                         onConfigSave: props.onConfigSave,
                         onModelChange: props.onModelChange,
                         onModelFallbacksChange: props.onModelFallbacksChange,
+                        onIdentityUpdate: props.onIdentityUpdate,
                       })
                     : nothing
                 }
@@ -289,6 +312,7 @@ function renderAgentHeader(
   agent: AgentsListResult["agents"][number],
   defaultId: string | null,
   agentIdentity: AgentIdentityResult | null,
+  onIdentityUpdate: (agentId: string, patch: { name?: string; emoji?: string; avatar?: string }) => void,
 ) {
   const badge = agentBadgeText(agent.id, defaultId);
   const displayName = normalizeAgentLabel(agent);
@@ -297,9 +321,31 @@ function renderAgentHeader(
   return html`
     <section class="card agent-header">
       <div class="agent-header-main">
-        <div class="agent-avatar agent-avatar--lg">${emoji || displayName.slice(0, 1)}</div>
+        <div 
+          class="agent-avatar agent-avatar--lg editable-text" 
+          role="button" 
+          tabindex="0"
+          title="Click to change emoji"
+          @click=${() => {
+            const next = prompt("Change Identity Emoji:", emoji);
+            if (next !== null && next !== emoji) {
+              onIdentityUpdate(agent.id, { emoji: next });
+            }
+          }}
+        >${emoji || displayName.slice(0, 1)}</div>
         <div>
-          <div class="card-title">${displayName}</div>
+          <div 
+            class="card-title editable-text" 
+            role="button" 
+            tabindex="0"
+            title="Click to change name"
+            @click=${() => {
+              const next = prompt("Change Identity Name:", displayName);
+              if (next !== null && next !== displayName) {
+                onIdentityUpdate(agent.id, { name: next });
+              }
+            }}
+          >${displayName}</div>
           <div class="card-sub">${subtitle}</div>
         </div>
       </div>
@@ -352,6 +398,7 @@ function renderAgentOverview(params: {
   onConfigSave: () => void;
   onModelChange: (agentId: string, modelId: string | null) => void;
   onModelFallbacksChange: (agentId: string, fallbacks: string[]) => void;
+  onIdentityUpdate: (agentId: string, patch: { name?: string; emoji?: string; avatar?: string }) => void;
 }) {
   const {
     agent,
@@ -367,6 +414,7 @@ function renderAgentOverview(params: {
     onConfigSave,
     onModelChange,
     onModelFallbacksChange,
+    onIdentityUpdate,
   } = params;
   const config = resolveAgentConfig(configForm, agent.id);
   const workspaceFromFiles =
@@ -417,7 +465,22 @@ function renderAgentOverview(params: {
         </div>
         <div class="agent-kv">
           <div class="label">Identity Name</div>
-          <div>${identityName}</div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div 
+              class="editable-text" 
+              role="button" 
+              tabindex="0"
+              @click=${() => {
+                const next = prompt("Change Identity Name:", identityName);
+                if (next !== null && next !== identityName) {
+                  onIdentityUpdate(agent.id, { name: next });
+                }
+              }}
+              @keydown=${(e: KeyboardEvent) => { if (e.key === 'Enter') (e.target as HTMLElement).click(); }}
+            >
+              ${identityName} ${icons.edit ? html`<span class="icon--sm">${icons.edit}</span>` : "✎"}
+            </div>
+          </div>
           ${identityStatus ? html`<div class="agent-kv-sub muted">${identityStatus}</div>` : nothing}
         </div>
         <div class="agent-kv">
@@ -426,7 +489,20 @@ function renderAgentOverview(params: {
         </div>
         <div class="agent-kv">
           <div class="label">Identity Emoji</div>
-          <div>${identityEmoji}</div>
+          <div 
+            class="editable-text" 
+            role="button" 
+            tabindex="0"
+            @click=${() => {
+              const next = prompt("Change Identity Emoji:", identityEmoji);
+              if (next !== null && next !== identityEmoji) {
+                onIdentityUpdate(agent.id, { emoji: next });
+              }
+            }}
+            @keydown=${(e: KeyboardEvent) => { if (e.key === 'Enter') (e.target as HTMLElement).click(); }}
+          >
+            ${identityEmoji} ${icons.edit ? html`<span class="icon--sm">${icons.edit}</span>` : "✎"}
+          </div>
         </div>
         <div class="agent-kv">
           <div class="label">Skills Filter</div>

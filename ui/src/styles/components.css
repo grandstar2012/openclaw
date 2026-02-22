@@ -2133,3 +2133,39 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Icons */
+.icon--sm svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.editable-text {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  margin-left: -6px;
+  border-radius: var(--radius-sm);
+  transition: all var(--duration-fast) ease;
+  color: var(--accent);
+}
+
+.editable-text:hover {
+  background: var(--secondary);
+  text-decoration: underline;
+}
+
+.editable-text .icon--sm {
+  opacity: 0.6;
+}
+
+.editable-text:hover .icon--sm {
+  opacity: 1;
+}

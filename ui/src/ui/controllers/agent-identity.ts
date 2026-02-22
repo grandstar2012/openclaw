@@ -9,11 +9,11 @@ export type AgentIdentityState = {
   agentIdentityById: Record<string, AgentIdentityResult>;
 };
 
-export async function loadAgentIdentity(state: AgentIdentityState, agentId: string) {
+export async function loadAgentIdentity(state: AgentIdentityState, agentId: string, force = false) {
   if (!state.client || !state.connected || state.agentIdentityLoading) {
     return;
   }
-  if (state.agentIdentityById[agentId]) {
+  if (!force && state.agentIdentityById[agentId]) {
     return;
   }
   state.agentIdentityLoading = true;

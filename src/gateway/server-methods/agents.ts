@@ -325,6 +325,7 @@ export const agentsHandlers: GatewayRequestHandlers = {
 
     const model = resolveOptionalStringParam(params.model);
     const avatar = resolveOptionalStringParam(params.avatar);
+    const emoji = resolveOptionalStringParam(params.emoji);
 
     const nextConfig = applyAgentConfig(cfg, {
       agentId,
@@ -342,11 +343,39 @@ export const agentsHandlers: GatewayRequestHandlers = {
       await ensureAgentWorkspace({ dir: workspaceDir, ensureBootstrapFiles: !skipBootstrap });
     }
 
-    if (avatar) {
+    if (avatar || emoji || params.name) {
       const workspace = workspaceDir ?? resolveAgentWorkspaceDir(nextConfig, agentId);
       await fs.mkdir(workspace, { recursive: true });
       const identityPath = path.join(workspace, DEFAULT_IDENTITY_FILENAME);
-      await fs.appendFile(identityPath, `\n- Avatar: ${sanitizeIdentityLine(avatar)}\n`, "utf-8");
+
+      let existing: any = {};
+      try {
+        const content = await fs.readFile(identityPath, "utf-8");
+        const lines = content.split("\n");
+        for (const line of lines) {
+          const match = line.match(/^\s*-\s*([^:]+):\s*(.*)$/);
+          if (match) {
+            existing[match[1].trim().toLowerCase()] = match[2].trim();
+          }
+        }
+      } catch {
+        // file missing or unreadable
+      }
+
+      const nextIdentity = {
+        ...existing,
+        ...(params.name ? { name: sanitizeIdentityLine(params.name) } : {}),
+        ...(emoji ? { emoji: sanitizeIdentityLine(emoji) } : {}),
+        ...(avatar ? { avatar: sanitizeIdentityLine(avatar) } : {}),
+      };
+
+      const lines = [""];
+      if (nextIdentity.name) lines.push(`- Name: ${nextIdentity.name}`);
+      if (nextIdentity.emoji) lines.push(`- Emoji: ${nextIdentity.emoji}`);
+      if (nextIdentity.avatar) lines.push(`- Avatar: ${nextIdentity.avatar}`);
+      lines.push("");
+
+      await fs.writeFile(identityPath, lines.join("\n"), "utf-8");
     }
 
     respond(true, { ok: true, agentId }, undefined);

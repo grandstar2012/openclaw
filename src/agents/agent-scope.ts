@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import type { OpenClawConfig } from "../config/config.js";
 import { resolveStateDir } from "../config/paths.js";
@@ -33,10 +34,39 @@ type ResolvedAgentConfig = {
 let defaultAgentWarned = false;
 
 export function listAgentEntries(cfg: OpenClawConfig): AgentEntry[] {
-  const list = cfg.agents?.list;
-  if (!Array.isArray(list)) {
-    return [];
+  const list = [...(cfg.agents?.list ?? [])];
+  
+  // Dynamic Discovery: Scan workspace for folders containing SOUL.md
+  // This allows "Unlimited" and "Customizable" agents via the filesystem.
+  const stateDir = resolveStateDir(process.env);
+  const workspaceRoot = cfg.agents?.defaults?.workspace 
+    ? resolveUserPath(cfg.agents.defaults.workspace)
+    : path.join(stateDir, "workspace");
+
+  if (fs.existsSync(workspaceRoot)) {
+    try {
+      const dirs = fs.readdirSync(workspaceRoot, { withFileTypes: true });
+      for (const dir of dirs) {
+        if (dir.isDirectory()) {
+          const agentId = dir.name;
+          const soulPath = path.join(workspaceRoot, agentId, "SOUL.md");
+          
+          // If a folder has SOUL.md and isn't in the list, auto-register it
+          const existsInConfig = list.some(entry => normalizeAgentId(entry.id) === normalizeAgentId(agentId));
+          if (!existsInConfig && fs.existsSync(soulPath)) {
+            list.push({
+              id: agentId,
+              name: agentId.charAt(0).toUpperCase() + agentId.slice(1),
+              workspace: path.join(workspaceRoot, agentId)
+            });
+          }
+        }
+      }
+    } catch (e) {
+      // Silently skip if workspace is inaccessible during discovery
+    }
   }
+
   return list.filter((entry): entry is AgentEntry => Boolean(entry && typeof entry === "object"));
 }
 
