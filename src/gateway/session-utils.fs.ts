@@ -78,39 +78,73 @@ export function readSessionMessages(
     return [];
   }
 
-  const lines = fs.readFileSync(filePath, "utf-8").split(/\r?\n/);
   const messages: unknown[] = [];
-  for (const line of lines) {
-    if (!line.trim()) {
-      continue;
-    }
-    try {
-      const parsed = JSON.parse(line);
-      if (parsed?.message) {
-        messages.push(parsed.message);
-        continue;
-      }
-
-      // Compaction entries are not "message" records, but they're useful context for debugging.
-      // Emit a lightweight synthetic message that the Web UI can render as a divider.
-      if (parsed?.type === "compaction") {
-        const ts = typeof parsed.timestamp === "string" ? Date.parse(parsed.timestamp) : Number.NaN;
-        const timestamp = Number.isFinite(ts) ? ts : Date.now();
-        messages.push({
-          role: "system",
-          content: [{ type: "text", text: "Compaction" }],
-          timestamp,
-          __openclaw: {
-            kind: "compaction",
-            id: typeof parsed.id === "string" ? parsed.id : undefined,
-          },
-        });
-      }
-    } catch {
-      // ignore bad lines
-    }
+  const stat = fs.statSync(filePath);
+  if (stat.size === 0) {
+    return messages;
   }
+
+  // For very large files, we might want to avoid reading the whole thing.
+  // But since we need to return ALL messages (based on the current signature),
+  // we read the file in 1MB chunks to avoid a single massive string allocation.
+  const CHUNK_SIZE = 1024 * 1024;
+  const fd = fs.openSync(filePath, "r");
+  try {
+    let remainder = "";
+    const buffer = Buffer.alloc(CHUNK_SIZE);
+    let bytesRead: number;
+    let offset = 0;
+
+    while ((bytesRead = fs.readSync(fd, buffer, 0, CHUNK_SIZE, offset)) > 0) {
+      offset += bytesRead;
+      const text = remainder + buffer.toString("utf-8", 0, bytesRead);
+      const lines = text.split(/\r?\n/);
+      // The last line might be incomplete
+      remainder = lines.pop() ?? "";
+
+      for (const line of lines) {
+        processLine(line, messages);
+      }
+    }
+
+    if (remainder.trim()) {
+      processLine(remainder, messages);
+    }
+  } finally {
+    fs.closeSync(fd);
+  }
+
   return messages;
+}
+
+function processLine(line: string, messages: unknown[]): void {
+  const trimmed = line.trim();
+  if (!trimmed) {
+    return;
+  }
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed?.message) {
+      messages.push(parsed.message);
+      return;
+    }
+
+    if (parsed?.type === "compaction") {
+      const ts = typeof parsed.timestamp === "string" ? Date.parse(parsed.timestamp) : Number.NaN;
+      const timestamp = Number.isFinite(ts) ? ts : Date.now();
+      messages.push({
+        role: "system",
+        content: [{ type: "text", text: "Compaction" }],
+        timestamp,
+        __openclaw: {
+          kind: "compaction",
+          id: typeof parsed.id === "string" ? parsed.id : undefined,
+        },
+      });
+    }
+  } catch {
+    // ignore bad lines
+  }
 }
 
 export function resolveSessionTranscriptCandidates(

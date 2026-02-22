@@ -311,14 +311,37 @@ function ensureTranscriptFile(params: { transcriptPath: string; sessionId: strin
 
 function transcriptHasIdempotencyKey(transcriptPath: string, idempotencyKey: string): boolean {
   try {
-    const lines = fs.readFileSync(transcriptPath, "utf-8").split(/\r?\n/);
-    for (const line of lines) {
-      if (!line.trim()) {
+    const stat = fs.statSync(transcriptPath);
+    if (stat.size === 0) {
+      return false;
+    }
+
+    const MAX_SCAN_BYTES = 64 * 1024; // 64KB should be plenty for recent activity
+    const readSize = Math.min(stat.size, MAX_SCAN_BYTES);
+    const buffer = Buffer.alloc(readSize);
+    const fd = fs.openSync(transcriptPath, "r");
+    try {
+      fs.readSync(fd, buffer, 0, readSize, stat.size - readSize);
+    } finally {
+      fs.closeSync(fd);
+    }
+
+    const chunk = buffer.toString("utf-8");
+    const lines = chunk.split(/\r?\n/);
+    // If we read a partial chunk, the first line might be incomplete.
+    // However, idempotency keys are usually at the end, so we iterate backwards.
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i].trim();
+      if (!line) {
         continue;
       }
-      const parsed = JSON.parse(line) as { message?: { idempotencyKey?: unknown } };
-      if (parsed?.message?.idempotencyKey === idempotencyKey) {
-        return true;
+      try {
+        const parsed = JSON.parse(line) as { message?: { idempotencyKey?: unknown } };
+        if (parsed?.message?.idempotencyKey === idempotencyKey) {
+          return true;
+        }
+      } catch {
+        // ignore malformed lines (likely partial read at start of chunk)
       }
     }
     return false;
