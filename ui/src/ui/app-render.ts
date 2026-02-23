@@ -949,12 +949,16 @@ export function renderApp(state: AppViewState) {
                 filterText: state.logsFilterText,
                 levelFilters: state.logsLevelFilters,
                 autoFollow: state.logsAutoFollow,
+                lifecycleOnly: state.logsLifecycleOnly,
+                issuesOnly: state.logsIssuesOnly,
                 truncated: state.logsTruncated,
                 onFilterTextChange: (next) => (state.logsFilterText = next),
                 onLevelToggle: (level, enabled) => {
                   state.logsLevelFilters = { ...state.logsLevelFilters, [level]: enabled };
                 },
                 onToggleAutoFollow: (next) => (state.logsAutoFollow = next),
+                onToggleLifecycleOnly: (next) => (state.logsLifecycleOnly = next),
+                onToggleIssuesOnly: (next) => (state.logsIssuesOnly = next),
                 onRefresh: () => loadLogs(state, { reset: true }),
                 onExport: (lines, label) => state.exportLogs(lines, label),
                 onScroll: (event) => state.handleLogsScroll(event),

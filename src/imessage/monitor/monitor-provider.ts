@@ -46,6 +46,7 @@ import {
 import { parseIMessageNotification } from "./parse-notification.js";
 import { normalizeAllowList, resolveRuntime } from "./runtime.js";
 import type { IMessagePayload, MonitorIMessageOpts } from "./types.js";
+import { logLifecycle } from "../../logging/lifecycle.js";
 
 /**
  * Try to detect remote host from an SSH wrapper script like:
@@ -468,6 +469,12 @@ export async function monitorIMessageProvider(opts: MonitorIMessageOpts = {}): P
     return;
   }
 
+  logLifecycle(`imessage: account "${accountInfo.accountId}" starting monitor`, {
+    accountId: accountInfo.accountId,
+    cliPath,
+    dbPath,
+  });
+
   const client = await createIMessageRpcClient({
     cliPath,
     dbPath,
@@ -497,11 +504,19 @@ export async function monitorIMessageProvider(opts: MonitorIMessageOpts = {}): P
     });
     subscriptionId = result?.subscription ?? null;
     await client.waitForClose();
+    logLifecycle(`imessage: account "${accountInfo.accountId}" stopped`, {
+      accountId: accountInfo.accountId,
+    });
   } catch (err) {
     if (abort?.aborted) {
       return;
     }
-    runtime.error?.(danger(`imessage: monitor failed: ${String(err)}`));
+    const errMsg = String(err);
+    logLifecycle(`imessage: account "${accountInfo.accountId}" monitor failure: ${errMsg}`, {
+      accountId: accountInfo.accountId,
+      error: errMsg,
+    });
+    runtime.error?.(danger(`imessage: monitor failed: ${errMsg}`));
     throw err;
   } finally {
     detachAbortHandler();

@@ -66,6 +66,7 @@ import {
 } from "./native-command.js";
 import { resolveDiscordPresenceUpdate } from "./presence.js";
 import { resolveDiscordRestFetch } from "./rest-fetch.js";
+import { logLifecycle } from "../../logging/lifecycle.js";
 
 export type MonitorDiscordOpts = {
   token?: string;
@@ -587,6 +588,10 @@ export async function monitorDiscordProvider(opts: MonitorDiscordOpts = {}) {
   }
 
   runtime.log?.(`logged in to discord${botUserId ? ` as ${botUserId}` : ""}`);
+  logLifecycle(`discord: account "${account.accountId}" connected${botUserId ? ` as ${botUserId}` : ""}`, {
+    accountId: account.accountId,
+    botUserId,
+  });
 
   // Start exec approvals handler after client is ready
   if (execApprovalsHandler) {
@@ -653,7 +658,12 @@ export async function monitorDiscordProvider(opts: MonitorDiscordOpts = {}) {
         : undefined,
       abortSignal,
       onGatewayError: (err) => {
-        runtime.error?.(danger(`discord gateway error: ${String(err)}`));
+        const errMsg = String(err);
+        logLifecycle(`discord: account "${account.accountId}" gateway error: ${errMsg}`, {
+          accountId: account.accountId,
+          error: errMsg,
+        });
+        runtime.error?.(danger(`discord gateway error: ${errMsg}`));
       },
       shouldStopOnError: (err) => {
         const message = String(err);
@@ -673,6 +683,9 @@ export async function monitorDiscordProvider(opts: MonitorDiscordOpts = {}) {
     if (execApprovalsHandler) {
       await execApprovalsHandler.stop();
     }
+    logLifecycle(`discord: account "${account.accountId}" stopped`, {
+      accountId: account.accountId,
+    });
   }
 }
 

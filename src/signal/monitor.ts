@@ -12,6 +12,7 @@ import { normalizeE164 } from "../utils.js";
 import { resolveSignalAccount } from "./accounts.js";
 import { signalCheck, signalRpcRequest } from "./client.js";
 import { spawnSignalDaemon } from "./daemon.js";
+import { logLifecycle } from "../logging/lifecycle.js";
 import { isSignalSenderAllowed, type resolveSignalSender } from "./identity.js";
 import { createSignalEventHandler } from "./monitor/event-handler.js";
 import type {
@@ -305,6 +306,10 @@ export async function monitorSignalProvider(opts: MonitorSignalOpts = {}): Promi
     });
   }
 
+  logLifecycle(`signal: account "${accountInfo.accountId}" starting monitor`, {
+    accountId: accountInfo.accountId,
+  });
+
   const onAbort = () => {
     daemonHandle?.stop();
   };
@@ -361,10 +366,18 @@ export async function monitorSignalProvider(opts: MonitorSignalOpts = {}): Promi
         });
       },
     });
+    logLifecycle(`signal: account "${accountInfo.accountId}" stopped`, {
+      accountId: accountInfo.accountId,
+    });
   } catch (err) {
     if (opts.abortSignal?.aborted) {
       return;
     }
+    const errMsg = String(err);
+    logLifecycle(`signal: account "${accountInfo.accountId}" failure: ${errMsg}`, {
+      accountId: accountInfo.accountId,
+      error: errMsg,
+    });
     throw err;
   } finally {
     opts.abortSignal?.removeEventListener("abort", onAbort);

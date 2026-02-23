@@ -12,6 +12,7 @@ import { resolveTelegramAllowedUpdates } from "./allowed-updates.js";
 import { createTelegramBot } from "./bot.js";
 import { isRecoverableTelegramNetworkError } from "./network-errors.js";
 import { makeProxyFetch } from "./proxy.js";
+import { logLifecycle } from "../logging/lifecycle.js";
 import { readTelegramUpdateOffset, writeTelegramUpdateOffset } from "./update-offset-store.js";
 import { startTelegramWebhook } from "./webhook.js";
 
@@ -168,6 +169,9 @@ export async function monitorTelegramProvider(opts: MonitorTelegramOpts = {}) {
       return;
     }
 
+    logLifecycle(`telegram: account "${account.accountId}" starting polling`, {
+      accountId: account.accountId,
+    });
     // Use grammyjs/runner for concurrent update processing
     let restartAttempts = 0;
 
@@ -182,6 +186,9 @@ export async function monitorTelegramProvider(opts: MonitorTelegramOpts = {}) {
       try {
         // runner.task() returns a promise that resolves when the runner stops
         await runner.task();
+        logLifecycle(`telegram: account "${account.accountId}" stopped`, {
+          accountId: account.accountId,
+        });
         return;
       } catch (err) {
         if (opts.abortSignal?.aborted) {
@@ -196,9 +203,14 @@ export async function monitorTelegramProvider(opts: MonitorTelegramOpts = {}) {
         const delayMs = computeBackoff(TELEGRAM_POLL_RESTART_POLICY, restartAttempts);
         const reason = isConflict ? "getUpdates conflict" : "network error";
         const errMsg = formatErrorMessage(err);
-        (opts.runtime?.error ?? console.error)(
-          `Telegram ${reason}: ${errMsg}; retrying in ${formatDurationPrecise(delayMs)}.`,
-        );
+        const msg = `telegram: account "${account.accountId}" ${reason}: ${errMsg}; retrying in ${formatDurationPrecise(delayMs)}`;
+        logLifecycle(msg, {
+          accountId: account.accountId,
+          error: errMsg,
+          reason,
+          backoffMs: delayMs,
+        });
+        (opts.runtime?.error ?? console.error)(msg);
         try {
           await sleepWithAbort(delayMs, opts.abortSignal);
         } catch (sleepErr) {

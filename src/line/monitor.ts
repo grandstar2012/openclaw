@@ -27,6 +27,7 @@ import {
 import { buildTemplateMessageFromPayload } from "./template-messages.js";
 import type { LineChannelData, ResolvedLineAccount } from "./types.js";
 import { createLineNodeWebhookHandler } from "./webhook-node.js";
+import { logLifecycle } from "../logging/lifecycle.js";
 
 export interface MonitorLineProviderOptions {
   channelAccessToken: string;
@@ -147,6 +148,11 @@ export async function monitorLineProvider(
       running: true,
       lastStartAt: Date.now(),
     },
+  });
+
+  logLifecycle(`line: account "${resolvedAccountId}" starting monitor`, {
+    accountId: resolvedAccountId,
+    webhookPath,
   });
 
   // Create the bot
@@ -306,6 +312,9 @@ export async function monitorLineProvider(
         running: false,
         lastStopAt: Date.now(),
       },
+    });
+    logLifecycle(`line: account "${resolvedAccountId}" stopped`, {
+      accountId: resolvedAccountId,
     });
   };
 

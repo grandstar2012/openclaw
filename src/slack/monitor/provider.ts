@@ -28,6 +28,7 @@ import { registerSlackMonitorEvents } from "./events.js";
 import { createSlackMessageHandler } from "./message-handler.js";
 import { registerSlackMonitorSlashCommands } from "./slash.js";
 import type { MonitorSlackOpts } from "./types.js";
+import { logLifecycle } from "../../logging/lifecycle.js";
 
 const slackBoltModule = SlackBolt as typeof import("@slack/bolt") & {
   default?: typeof import("@slack/bolt");
@@ -345,9 +346,13 @@ export async function monitorSlackProvider(opts: MonitorSlackOpts = {}) {
   try {
     if (slackMode === "socket") {
       await app.start();
-      runtime.log?.("slack socket mode connected");
+      const msg = `slack socket mode connected (account: ${account.accountId})`;
+      runtime.log?.(msg);
+      logLifecycle(msg, { accountId: account.accountId, mode: "socket" });
     } else {
-      runtime.log?.(`slack http mode listening at ${slackWebhookPath}`);
+      const msg = `slack http mode listening at ${slackWebhookPath} (account: ${account.accountId})`;
+      runtime.log?.(msg);
+      logLifecycle(msg, { accountId: account.accountId, mode: "http", path: slackWebhookPath });
     }
     if (opts.abortSignal?.aborted) {
       return;
@@ -361,5 +366,8 @@ export async function monitorSlackProvider(opts: MonitorSlackOpts = {}) {
     opts.abortSignal?.removeEventListener("abort", stopOnAbort);
     unregisterHttpHandler?.();
     await app.stop().catch(() => undefined);
+    logLifecycle(`slack: account "${account.accountId}" stopped`, {
+      accountId: account.accountId,
+    });
   }
 }

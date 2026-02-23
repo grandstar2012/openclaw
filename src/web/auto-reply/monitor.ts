@@ -12,6 +12,7 @@ import { registerUnhandledRejectionHandler } from "../../infra/unhandled-rejecti
 import { getChildLogger } from "../../logging.js";
 import { resolveAgentRoute } from "../../routing/resolve-route.js";
 import { defaultRuntime, type RuntimeEnv } from "../../runtime.js";
+import { logLifecycle } from "../../logging/lifecycle.js";
 import { resolveWhatsAppAccount } from "../accounts.js";
 import { setActiveWebListener } from "../active-listener.js";
 import { monitorWebInbox } from "../inbound.js";
@@ -213,6 +214,7 @@ export async function monitorWebChannel(
     status.lastEventAt = status.lastConnectedAt;
     status.lastError = null;
     emitStatus();
+    logLifecycle(`WhatsApp channel connected (account: ${account.accountId})`);
 
     // Surface a concise connection event for the next main-session turn/heartbeat.
     const { e164: selfE164 } = readWebSelfId(account.authDir);
@@ -388,6 +390,11 @@ export async function monitorWebChannel(
       },
       "web reconnect: connection closed",
     );
+    logLifecycle(`WhatsApp channel disconnected (account: ${account.accountId}), status: ${statusCode}, reason: ${errorStr}`, {
+      status: statusCode,
+      loggedOut,
+      error: errorStr,
+    });
 
     enqueueSystemEvent(`WhatsApp gateway disconnected (status ${statusCode ?? "unknown"})`, {
       sessionKey: connectRoute.sessionKey,

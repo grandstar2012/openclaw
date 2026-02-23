@@ -12,9 +12,13 @@ export type LogsProps = {
   levelFilters: Record<LogLevel, boolean>;
   autoFollow: boolean;
   truncated: boolean;
+  lifecycleOnly: boolean;
+  issuesOnly: boolean;
   onFilterTextChange: (next: string) => void;
   onLevelToggle: (level: LogLevel, enabled: boolean) => void;
   onToggleAutoFollow: (next: boolean) => void;
+  onToggleLifecycleOnly: (next: boolean) => void;
+  onToggleIssuesOnly: (next: boolean) => void;
   onRefresh: () => void;
   onExport: (lines: string[], label: string) => void;
   onScroll: (event: Event) => void;
@@ -46,6 +50,17 @@ export function renderLogs(props: LogsProps) {
   const needle = props.filterText.trim().toLowerCase();
   const levelFiltered = LEVELS.some((level) => !props.levelFilters[level]);
   const filtered = props.entries.filter((entry) => {
+    if (props.lifecycleOnly && entry.subsystem !== "system/lifecycle") {
+      return false;
+    }
+    if (
+      props.issuesOnly &&
+      entry.level !== "error" &&
+      entry.level !== "fatal" &&
+      entry.subsystem !== "system/lifecycle"
+    ) {
+      return false;
+    }
     if (entry.level && !props.levelFilters[entry.level]) {
       return false;
     }
@@ -94,6 +109,24 @@ export function renderLogs(props: LogsProps) {
             .checked=${props.autoFollow}
             @change=${(e: Event) =>
               props.onToggleAutoFollow((e.target as HTMLInputElement).checked)}
+          />
+        </label>
+        <label class="field checkbox">
+          <span>Lifecycle only</span>
+          <input
+            type="checkbox"
+            .checked=${props.lifecycleOnly}
+            @change=${(e: Event) =>
+              props.onToggleLifecycleOnly((e.target as HTMLInputElement).checked)}
+          />
+        </label>
+        <label class="field checkbox">
+          <span style="color: var(--color-danger-text, #ef4444)">Issues only (Errors/Offline)</span>
+          <input
+            type="checkbox"
+            .checked=${props.issuesOnly}
+            @change=${(e: Event) =>
+              props.onToggleIssuesOnly((e.target as HTMLInputElement).checked)}
           />
         </label>
       </div>
