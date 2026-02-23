@@ -90,6 +90,8 @@ class MarketService {
 ### Middleware Pattern
 
 ```typescript
+import type { NextApiHandler } from 'next'
+
 // Request/response processing pipeline
 export function withAuth(handler: NextApiHandler): NextApiHandler {
   return async (req, res) => {
@@ -255,6 +257,9 @@ async function getMarketWithCache(id: string): Promise<Market> {
 ### Centralized Error Handler
 
 ```typescript
+import { NextResponse } from 'next/server'
+import { z } from 'zod'
+
 class ApiError extends Error {
   constructor(
     public statusCode: number,
@@ -365,6 +370,8 @@ export async function requireAuth(request: Request) {
 }
 
 // Usage in API route
+import { NextResponse } from 'next/server'
+
 export async function GET(request: Request) {
   const user = await requireAuth(request)
 
@@ -448,6 +455,8 @@ class RateLimiter {
   }
 }
 
+import { NextResponse } from 'next/server'
+
 const limiter = new RateLimiter()
 
 export async function GET(request: Request) {
@@ -504,6 +513,8 @@ class JobQueue<T> {
 }
 
 // Usage for indexing markets
+import { NextResponse } from 'next/server'
+
 interface IndexJob {
   marketId: string
 }
@@ -565,6 +576,9 @@ class Logger {
 const logger = new Logger()
 
 // Usage
+import { NextResponse } from 'next/server'
+import crypto from 'node:crypto'
+
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID()
 
